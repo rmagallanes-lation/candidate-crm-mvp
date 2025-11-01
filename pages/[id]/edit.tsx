@@ -1,1 +1,0 @@
-// Edit Candidate Page

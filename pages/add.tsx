@@ -1,1 +1,0 @@
-// Add Candidate Form Page

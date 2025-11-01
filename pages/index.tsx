@@ -1,191 +1,189 @@
-// Dashboard Page
-import { useEffect, useMemo, useState } from "react";
-import CandidateTable, { Candidate as CandidateRecord } from "../components/CandidateTable";
-import Layout from "../components/Layout";
-
-type MetricTone = "indigo" | "emerald" | "amber" | "rose";
-
-type ApiCandidate = CandidateRecord & {
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-const SearchIcon = () => (
-  <svg viewBox="0 0 20 20" className="h-4 w-4 text-slate-400">
-    <path
-      d="M9 2a7 7 0 1 1-4.9 11.9l-2 2A1 1 0 0 1 .7 14.5l2-2A7 7 0 0 1 9 2Zm0 2a5 5 0 1 0 3.5 8.5A5 5 0 0 0 9 4Z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
-const FilterChip = ({ label }: { label: string }) => (
-  <button className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:border-slate-300 hover:text-slate-900">
-    {label}
-    <span className="text-slate-400">▾</span>
-  </button>
-);
-
-const MetricCard = ({
-  label,
-  value,
-  trend,
-  tone = "indigo",
-}: {
-  label: string;
-  value: string;
-  trend: string;
-  tone?: MetricTone;
-}) => {
-  const toneClasses: Record<MetricTone, string> = {
-    indigo: "bg-indigo-100 text-indigo-700",
-    emerald: "bg-emerald-100 text-emerald-700",
-    amber: "bg-amber-100 text-amber-700",
-    rose: "bg-rose-100 text-rose-700",
-  };
-
-  return (
-    <article className="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-100/60">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <div className="mt-4 flex items-end gap-3">
-        <span className="text-2xl font-semibold text-slate-900">{value}</span>
-        <span
-          className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-            toneClasses[tone]
-          }`}
-        >
-          {trend}
-        </span>
-      </div>
-      <div className="mt-4 h-1.5 rounded-full bg-slate-100">
-        <div className={`h-full rounded-full ${toneClasses[tone].split(" ")[0]} transition-all`} />
-      </div>
-    </article>
-  );
-};
+import { useEffect, useState } from "react";
 
 export default function CandidatesPage() {
-  const [candidates, setCandidates] = useState<ApiCandidate[]>([]);
+  const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"classic" | "modern" | "pro">("classic");
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadCandidates = async () => {
+    async function fetchCandidates() {
       try {
-        setLoading(true);
-        const response = await fetch("/api/candidates");
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-        const payload: ApiCandidate[] = await response.json();
-        if (isMounted) {
-          setCandidates(payload);
-        }
+        const res = await fetch("/api/candidates");
+        const data = await res.json();
+        setCandidates(data);
       } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Unexpected error");
-        }
+        console.error("Failed to load candidates", err);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
-    };
-
-    loadCandidates();
-    return () => {
-      isMounted = false;
-    };
+    }
+    fetchCandidates();
   }, []);
 
-  const metrics = useMemo(() => {
-    const total = candidates.length;
-    const interview = candidates.filter((candidate) =>
-      (candidate.status ?? "").toLowerCase().includes("interview")
-    ).length;
-    const hired = candidates.filter((candidate) => (candidate.status ?? "").toLowerCase() === "hired").length;
-    const available = candidates.filter((candidate) => candidate.available !== false).length;
-
-    return {
-      total,
-      interview,
-      hired,
-      available,
-    };
-  }, [candidates]);
+  if (loading) return <div className="p-8 text-gray-500">Loading candidates...</div>;
 
   return (
-    <Layout>
-      <div className="flex flex-col gap-8">
-        <section className="grid gap-4 md:grid-cols-4">
-          <MetricCard label="Total Candidates" value={String(metrics.total)} trend="+18% vs last month" />
-          <MetricCard
-            label="Interview Stage"
-            value={String(metrics.interview)}
-            trend={`${metrics.interview ? "+5%" : "0%"}`}
-            tone="amber"
-          />
-          <MetricCard
-            label="Hired This Quarter"
-            value={String(metrics.hired)}
-            trend={`${metrics.hired ? "+2" : "0"}`}
-            tone="emerald"
-          />
-          <MetricCard
-            label="Available Talent"
-            value={String(metrics.available)}
-            trend="62% ready"
-            tone="indigo"
-          />
-        </section>
+    <div className="p-8">
+      {/* Header + Switch */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">All Candidates</h1>
 
-        <section className="rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm shadow-slate-100/60">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
-              <SearchIcon />
-              <input
-                className="w-52 bg-transparent text-sm outline-none placeholder:text-slate-400"
-                placeholder="Search candidate"
-                type="search"
-                disabled
-              />
-            </div>
-            <FilterChip label="Date range" />
-            <FilterChip label="Score range" />
-            <FilterChip label="Role applied" />
-            <FilterChip label="Jobs applied" />
-            <div className="ml-auto flex items-center gap-2">
-              <button className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-slate-300">
-                Save view
-              </button>
-              <button className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white">
-                Export
-              </button>
-              <button className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-slate-700">
-                ☰
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {error ? (
-          <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700 shadow-sm">
-            Unable to load candidates. {error}
-          </div>
-        ) : loading ? (
-          <div className="rounded-3xl border border-slate-200 bg-white px-6 py-12 shadow-sm shadow-slate-100/60">
-            <div className="flex flex-col gap-4">
-              {[...Array(5)].map((_, index) => (
-                <div key={index} className="h-14 animate-pulse rounded-2xl bg-slate-100" />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <CandidateTable candidates={candidates} />
-        )}
+        {/* 🧩 3-Mode Switch */}
+        <div className="flex items-center gap-3 bg-gray-100 p-1 rounded-full">
+          {["classic", "modern", "pro"].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode as any)}
+              className={`px-4 py-1 rounded-full text-sm font-medium transition ${
+                viewMode === mode
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-white"
+              }`}
+            >
+              {mode === "classic" ? "Classic" : mode === "modern" ? "Modern" : "Pro"}
+            </button>
+          ))}
+        </div>
       </div>
-    </Layout>
+
+      {/* Switch between 3 views */}
+      {viewMode === "classic" && <ClassicTable candidates={candidates} />}
+      {viewMode === "modern" && <ModernCards candidates={candidates} />}
+      {viewMode === "pro" && <ProDashboard candidates={candidates} />}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 🧱 Classic Table View */
+/* -------------------------------------------------------------------------- */
+function ClassicTable({ candidates }: { candidates: any[] }) {
+  return (
+    <table className="w-full border-collapse">
+      <thead>
+        <tr className="bg-gray-100 text-left text-sm">
+          <th className="p-3">Name</th>
+          <th className="p-3">Role Applied</th>
+          <th className="p-3">Status</th>
+          <th className="p-3">Email</th>
+          <th className="p-3">Phone</th>
+          <th className="p-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {candidates.map((c) => (
+          <tr key={c._id} className="border-b hover:bg-gray-50">
+            <td className="p-3 font-medium">{c.name} {c.lastName}</td>
+            <td className="p-3">{c.preferredRole ?? "—"}</td>
+            <td className="p-3">
+              <span className={`px-2 py-1 text-xs rounded ${
+                c.status === "Hired"
+                  ? "bg-green-100 text-green-700"
+                  : c.status === "In Review"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}>
+                {c.status}
+              </span>
+            </td>
+            <td className="p-3">{c.email}</td>
+            <td className="p-3">{c.phone}</td>
+            <td className="p-3 text-right">
+              <a href={`/candidates/${c._id}`} className="text-blue-500 hover:text-blue-700 text-sm">
+                View Profile →
+              </a>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 💎 Modern Card View */
+/* -------------------------------------------------------------------------- */
+function ModernCards({ candidates }: { candidates: any[] }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {candidates.map((c) => (
+        <div
+          key={c._id}
+          className="p-5 rounded-2xl shadow-sm bg-white border hover:shadow-md transition"
+        >
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-semibold text-lg">
+              {c.name} {c.lastName}
+            </h2>
+            <span className={`px-2 py-1 text-xs rounded ${
+              c.status === "Hired"
+                ? "bg-green-100 text-green-700"
+                : c.status === "In Review"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600"
+            }`}>
+              {c.status}
+            </span>
+          </div>
+          <p className="text-sm text-gray-600 mb-1">{c.preferredRole ?? "—"}</p>
+          <p className="text-sm text-gray-500">{c.email}</p>
+          <p className="text-sm text-gray-500 mb-3">{c.phone}</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {c.skills?.slice(0, 3).map((s: string) => (
+              <span key={s} className="bg-blue-50 text-blue-600 px-2 py-0.5 text-xs rounded">
+                {s}
+              </span>
+            ))}
+          </div>
+          <a
+            href={`/candidates/${c._id}`}
+            className="block text-center text-sm text-blue-600 hover:text-blue-800 mt-3"
+          >
+            View Profile →
+          </a>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* ⚙️ Pro Dashboard View (Full CRM version) */
+/* -------------------------------------------------------------------------- */
+function ProDashboard({ candidates }: { candidates: any[] }) {
+  return (
+    <div className="bg-gray-50 rounded-2xl shadow-sm p-6">
+      {/* Top Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <MetricCard title="Total Candidates" value={candidates.length} change="+18% vs last month" />
+        <MetricCard title="Interview Stage" value="0" change="0%" />
+        <MetricCard title="Hired This Quarter" value="0" change="+0%" />
+        <MetricCard title="Available Talent" value="2" change="62% READY" />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <input placeholder="Search candidate..." className="border rounded px-3 py-2 text-sm" />
+        <select className="border rounded px-3 py-2 text-sm">
+          <option>Role</option>
+          <option>QA Engineer</option>
+          <option>Automation</option>
+        </select>
+        <button className="bg-blue-600 text-white px-4 py-2 rounded text-sm">Filter</button>
+      </div>
+
+      {/* Candidate Table */}
+      <ClassicTable candidates={candidates} />
+    </div>
+  );
+}
+
+function MetricCard({ title, value, change }: any) {
+  return (
+    <div className="bg-white border rounded-xl p-4">
+      <h3 className="text-sm text-gray-500">{title}</h3>
+      <p className="text-2xl font-bold mt-1">{value}</p>
+      <p className="text-xs text-green-600 mt-1">{change}</p>
+    </div>
   );
 }

@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { ReactNode } from "react";
+import { authBypassed, useUser } from "../lib/auth0";
 
 type NavItem = {
   label: string;
@@ -72,6 +74,8 @@ const HeaderAction = ({ children }: { children: ReactNode }) => (
 );
 
 export default function Layout({ children }: { children: ReactNode }) {
+  const { user, isLoading } = useUser();
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="grid min-h-screen grid-cols-[80px_1fr]">
@@ -119,15 +123,40 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <button className="h-12 w-12 rounded-full bg-indigo-600 text-xl font-semibold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-500">
                   +
                 </button>
-                <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-                    RM
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Roberto</p>
-                    <p className="text-xs text-slate-500">Admin</p>
+                {isLoading ? (
+                  <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2">
+                    <span className="h-9 w-9 animate-pulse rounded-full bg-slate-200" />
+                    <div className="flex flex-col gap-1">
+                      <span className="h-2 w-20 animate-pulse rounded-full bg-slate-200" />
+                      <span className="h-2 w-12 animate-pulse rounded-full bg-slate-200" />
+                    </div>
                   </div>
-                </div>
+                ) : user ? (
+                  <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
+                      {user.name?.[0] ?? "U"}
+                    </span>
+                    <div className="mr-2">
+                      <p className="text-sm font-semibold text-slate-900">{user.name ?? "Team member"}</p>
+                      <p className="text-xs text-slate-500">{user.email}</p>
+                    </div>
+                    {!authBypassed && (
+                      <Link
+                        href="/api/auth/logout"
+                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-900"
+                      >
+                        Logout
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href="/api/auth/login"
+                    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Sign in
+                  </Link>
+                )}
               </div>
             </div>
           </header>

@@ -1,5 +1,7 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import { getSession, withPageAuthRequired } from "../lib/auth0";
+import { userHasAccess } from "../lib/authorization";
 
 export default function CandidateProfile() {
   const router = useRouter();
@@ -39,3 +41,21 @@ export default function CandidateProfile() {
     </div>
   );
 }
+
+export const getServerSideProps = withPageAuthRequired({
+  async getServerSideProps(ctx) {
+    const session = await getSession(ctx.req, ctx.res);
+    const authz = userHasAccess(session?.user);
+    if (!authz.authorized) {
+      const reason = encodeURIComponent(authz.reason ?? "Unauthorized");
+      return {
+        redirect: {
+          destination: `/unauthorized?reason=${reason}`,
+          permanent: false,
+        },
+      };
+    }
+
+    return { props: {} };
+  },
+});

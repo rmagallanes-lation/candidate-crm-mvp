@@ -1,8 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { userHasAccess } from '../../../lib/authorization';
+import { getSession, withApiAuthRequired } from '../../../lib/auth0';
 import clientPromise from '../../../lib/db';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    const session = await getSession(req, res);
+    const authz = userHasAccess(session?.user);
+    if (!authz.authorized) {
+      return res.status(403).json({ message: authz.reason });
+    }
+
     const client = await clientPromise;
     const db = client.db('PeopleDB');
     const collection = db.collection('Candidates');
@@ -63,3 +71,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Internal Server Error' });
   }
 }
+
+export default withApiAuthRequired(handler);
